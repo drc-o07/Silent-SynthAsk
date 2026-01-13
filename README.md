@@ -1,2 +1,2 @@
 # Silent-SynthAsk
-A platform for teavhers to ask their professors any question regarding their course anonymously.
+A platform for students to ask their professors any question regarding their course anonymously.

@@ -1,0 +1,108 @@
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f8f9fa;
+    margin: 0;
+    padding: 40px;
+    color: #333;
+}
+
+.container {
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+header h1 {
+    font-size: 2.5rem;
+    color: #2c3e50;
+    margin-bottom: 20px;
+}
+
+/* Search Bar */
+.search-container input {
+    width: 400px;
+    padding: 12px 20px;
+    border-radius: 25px;
+    border: 2px solid #d1d8e0;
+    outline: none;
+    font-size: 1rem;
+}
+
+.content-wrapper {
+    display: flex;
+    gap: 50px;
+    margin-top: 40px;
+}
+
+/* Subjects Grid */
+.subject-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+}
+
+.subject-card {
+    width: 100px;
+    height: 100px;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.subject-card:hover { transform: scale(1.05); }
+
+/* Card Colors */
+.blue { background-color: #d1e9ff; }
+.orange { background-color: #ffe0b2; }
+.peach { background-color: #ffccbc; }
+.purple { background-color: #e1bee7; }
+.yellow { background-color: #fff9c4; }
+.grey { background-color: #cfd8dc; }
+.green { background-color: #c8e6c9; }
+.mint { background-color: #b2dfdb; }
+
+/* Feed Section */
+.feed-section { flex: 1; }
+
+.feed-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.feed-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.feed-card {
+    padding: 20px;
+    border-radius: 15px;
+    color: white;
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.dark-blue { background-color: #4a90e2; }
+.dark-orange { background-color: #f39c12; }
+.light-green { background-color: #e8f5e9; color: #2e7d32; }
+.solid-green { background-color: #4caf50; }
+
+button {
+    background: white;
+    border: none;
+    padding: 5px 15px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: bold;
+    width: fit-content;
+}
