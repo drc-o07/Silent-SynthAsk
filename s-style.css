@@ -90,7 +90,7 @@ h2 { font-size: 1.2rem; color: #64748b; margin-bottom: 20px; }
 .feed-item {
     padding: 25px;
     border-radius: 18px;
-    color: white;
+    color: rgb(247, 245, 245);
     font-size: 15px;
     display: flex;
     flex-direction: column;
@@ -118,3 +118,154 @@ h2 { font-size: 1.2rem; color: #64748b; margin-bottom: 20px; }
     .main-layout { grid-template-columns: 1fr; }
     .app-container { padding: 20px; }
 }
+
+
+/* Modal Overlay */
+.modal {
+    display: none; 
+    position: fixed; 
+    z-index: 1000; 
+    left: 0; top: 0;
+    width: 100%; height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    backdrop-filter: blur(4px);
+}
+
+/* Modal Box */
+.modal-content {
+    background-color: white;
+    margin: 10% auto;
+    padding: 30px;
+    border-radius: 20px;
+    width: 400px;
+    text-align: center;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+}
+
+#doubtText {
+    width: 100%;
+    height: 120px;
+    margin: 15px 0;
+    padding: 15px;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    resize: none;
+    font-size: 14px;
+}
+
+.close-btn {
+    float: right;
+    font-size: 24px;
+    cursor: pointer;
+    color: #64748b;
+}
+
+#submitDoubt {
+    background: #3b82f6;
+    color: rgb(12, 12, 12);
+    width: 100%;
+    padding: 12px;
+}
+
+.f-yellow { background: #eab308; } 
+.f-purple { background: #a855f7; } 
+.f-gray { background: #64748b; }   
+
+.feed-item p { color: white; margin: 0; } /* Ensures text is white on colored background */
+
+
+
+/*// 1. Select Elements
+
+
+
+// Select Elements
+const searchInput = document.getElementById('searchBar');
+const subjectCards = document.querySelectorAll('.subject-card');
+const feedGrid = document.querySelector('.feed-grid');
+const modal = document.getElementById('doubtModal');
+const closeBtn = document.querySelector('.close-btn');
+const submitBtn = document.getElementById('submitDoubt');
+const doubtText = document.getElementById('doubtText');
+const modalTitle = document.getElementById('modalTitle');
+
+let currentSubject = "";
+let currentClass = "";
+
+// --- 1. SEARCH FILTERING (For Subject Cards) ---
+searchInput.addEventListener('input', () => {
+    const filter = searchInput.value.toLowerCase();
+    subjectCards.forEach(card => {
+        const text = card.querySelector('span').textContent.toLowerCase();
+        card.style.display = text.includes(filter) ? 'flex' : 'none';
+    });
+});
+
+// --- 2. FEED FILTERING LOGIC ---
+function filterFeed(subjectName) {
+    const allFeedItems = document.querySelectorAll('.feed-item');
+    
+    allFeedItems.forEach(item => {
+        // "General" items or Admin posts usually stay visible, 
+        // or you can strictly filter by data-subject
+        const itemSubject = item.getAttribute('data-subject');
+        
+        if (subjectName === "All" || itemSubject === subjectName) {
+            item.style.display = "flex";
+        } else {
+            item.style.display = "none";
+        }
+    });
+}
+
+// --- 3. SUBJECT SELECTION & MODAL OPENING ---
+subjectCards.forEach(card => {
+    card.addEventListener('click', () => {
+        currentSubject = card.querySelector('span').textContent;
+        currentClass = card.classList[1].replace('c-', 'f-'); 
+
+        // Update UI to show we selected this subject
+        subjectCards.forEach(c => c.style.boxShadow = "none");
+        card.style.boxShadow = "0 0 0 3px #3b82f6";
+
+        // Filter the feed to show only this subject
+        filterFeed(currentSubject);
+
+        // Open Modal
+        modalTitle.innerText = `Ask a ${currentSubject} Doubt`;
+        modal.style.display = "block";
+    });
+});
+
+// --- 4. SUBMITTING NEW DOUBT (With Tagging) ---
+submitBtn.addEventListener('click', () => {
+    const question = doubtText.value.trim();
+    
+    if (question !== "") {
+        const newPost = document.createElement('div');
+        newPost.className = `feed-item ${currentClass}`;
+        
+        // IMPORTANT: Add data-subject attribute for filtering
+        newPost.setAttribute('data-subject', currentSubject);
+        
+        newPost.innerHTML = `
+            <p><strong>Student (${currentSubject})</strong><br>${question}</p>
+            <button class="btn">Reply</button>
+        `;
+
+        feedGrid.prepend(newPost);
+        
+        // Clear and close
+        doubtText.value = "";
+        modal.style.display = "none";
+        
+        // Ensure the new post is visible (since we are already in that subject filter)
+        filterFeed(currentSubject);
+    }
+});
+
+// Modal Close helpers
+closeBtn.onclick = () => modal.style.display = "none";
+window.onclick = (event) => { if (event.target == modal) modal.style.display = "none"; };
+
+
