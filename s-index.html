@@ -61,17 +61,6 @@
         </div>
     </div>
 
-    <script>
-        const searchInput = document.getElementById('searchBar');
-        const cards = document.querySelectorAll('.subject-card');
-
-        searchInput.addEventListener('input', () => {
-            const filter = searchInput.value.toLowerCase();
-            cards.forEach(card => {
-                const text = card.querySelector('span').textContent.toLowerCase();
-                card.style.display = text.includes(filter) ? 'flex' : 'none';
-            });
-        });
-    </script>
+   <script src="script.js"></script>
 </body>
 </html>
