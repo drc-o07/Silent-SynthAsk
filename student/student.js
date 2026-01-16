@@ -1,3 +1,16 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
 const searchInput = document.getElementById('searchBar');
 const subjectCards = document.querySelectorAll('.subject-card');
 const feedGrid = document.querySelector('.feed-grid');
@@ -11,15 +24,17 @@ let currentSubject = "";
 let currentClass = "";
 let currentFilter = "Most Recent"; // Tracks the dropdown selection
 
-// --- 1. SEARCH LOGIC ---
+// --- 1. YOUR ORIGINAL SEARCH LOGIC ---
 searchInput.addEventListener('input', () => {
     const query = searchInput.value.toLowerCase();
 
+    // Filter Subject Cards
     subjectCards.forEach(card => {
         const subjectName = card.querySelector('span').textContent.toLowerCase();
         card.style.display = subjectName.includes(query) ? 'flex' : 'none';
     });
 
+    // Filter Feed Items
     const feedItems = document.querySelectorAll('.feed-item');
     feedItems.forEach(item => {
         const postText = item.innerText.toLowerCase();
@@ -27,8 +42,8 @@ searchInput.addEventListener('input', () => {
     });
 });
 
-// --- 2. DROPDOWN FILTER LOGIC ---
-// This listens for clicks on your dropdown menu items
+// --- 2. INTEGRATED DROPDOWN FILTER LOGIC ---
+// Listens for clicks on your dropdown menu items without breaking your original code
 document.querySelectorAll('.messages-dropdown-container li, .dropdown-box li').forEach(item => {
     item.addEventListener('click', () => {
         // Gets text like "Questions Asked" or "Most Recent"
@@ -37,7 +52,7 @@ document.querySelectorAll('.messages-dropdown-container li, .dropdown-box li').f
     });
 });
 
-// --- 3. MODAL TRIGGER ---
+// --- 3. YOUR ORIGINAL MODAL TRIGGER ---
 subjectCards.forEach(card => {
     card.addEventListener('click', () => {
         currentSubject = card.querySelector('span').textContent;
@@ -48,7 +63,7 @@ subjectCards.forEach(card => {
     });
 });
 
-// --- 4. SUBMIT LOGIC ---
+// --- 4. YOUR ORIGINAL SUBMIT LOGIC (Updated to save to Shared Storage) ---
 submitBtn.addEventListener('click', () => {
     const question = doubtText.value.trim();
     
@@ -62,26 +77,36 @@ submitBtn.addEventListener('click', () => {
             status: "Pending"
         };
 
+        // Save to Shared Storage
         const allDoubts = JSON.parse(localStorage.getItem('allDoubts')) || [];
         allDoubts.push(newDoubt);
         localStorage.setItem('allDoubts', JSON.stringify(allDoubts));
 
+        // Reset and close
         doubtText.value = "";
         modal.style.display = "none";
         
+        // Refresh the UI
         renderFeed();
     }
 });
 
-// --- 5. FULLY INTEGRATED RENDER FUNCTION ---
+// --- 5. INTEGRATED RENDER FUNCTION (Handles Filters and Anti-Refresh for Text) ---
 function renderFeed() {
     if (!feedGrid) return;
-    feedGrid.innerHTML = ''; 
+
+    // PROTECTION: If the user is currently typing in a textarea, skip the refresh
+    // This prevents the text from disappearing every 3 seconds
+    if (document.activeElement && document.activeElement.tagName === "TEXTAREA") {
+        return; 
+    }
+
+    feedGrid.innerHTML = ''; // Clear to prevent duplicates
     let allDoubts = JSON.parse(localStorage.getItem('allDoubts')) || [];
 
     // Apply Dropdown Filtering
     if (currentFilter === "Questions Asked") {
-        // Shows only doubts that aren't marked as spam by the teacher
+        // Only show doubts that haven't been flagged as spam
         allDoubts = allDoubts.filter(doubt => doubt.status !== "Spam");
     }
 
@@ -119,5 +144,5 @@ window.onclick = (e) => { if (e.target == modal) modal.style.display = "none"; }
 // Run on page load
 renderFeed();
 
-// Auto-refresh every 3 seconds
+// Auto-refresh every 3 seconds (Will respect the 'is typing' check above)
 setInterval(renderFeed, 3000);
