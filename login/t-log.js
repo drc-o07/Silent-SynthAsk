@@ -1,15 +1,29 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-const firebaseConfig = {
-  apiKey: "AIzaSyBAK95zAZkX4bj45xnqXS9LMTPjQjcDOBo",
-  authDomain: "silent-synthask.firebaseapp.com",
-  projectId: "silent-synthask",
-  storageBucket: "silent-synthask.firebasestorage.app",
-  messagingSenderId: "273937385011",
-  appId: "1:273937385011:web:a1e463da178a3b42278546"
-};
+import { auth } from './firebase-config.js';
+import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+const loginForm = document.getElementById('loginForm');
+
+loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault(); // Stop page reload
+
+    const email = loginForm.querySelector('input[type="email"]').value;
+    const password = loginForm.querySelector('input[type="password"]').value;
+    const btn = loginForm.querySelector('.login-btn');
+
+    try {
+        btn.textContent = "Logging in...";
+        btn.disabled = true;
+
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        
+        // Success! Redirect to admin dashboard
+        console.log("Logged in as:", userCredential.user.email);
+        window.location.href = "admin.html";
+
+    } catch (error) {
+        console.error(error);
+        alert("Login failed: " + error.message);
+        btn.textContent = "Log In";
+        btn.disabled = false;
+    }
+});

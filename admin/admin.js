@@ -1,79 +1,121 @@
+import { db } from './firebase-config.js';
+import { collection, onSnapshot, updateDoc, doc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const adminPanel = document.querySelector('.admin-panel');
 const feedGrid = document.querySelector('.feed-panel .feed-grid');
 let currentView = "New Questions"; 
-let isTyping = false; // THE LOCK: prevents refresh while typing
+let allDoubtsCache = []; // Store doubts locally to filter without re-fetching
 
-// --- 1. HANDLE DROPDOWN CLICKS ---
+// 1. DROPDOWN HANDLERS
 document.querySelectorAll('.messages-dropdown-container li').forEach(item => {
     item.addEventListener('click', () => {
         currentView = item.childNodes[0].textContent.trim();
         document.querySelector('.section-header h2').innerText = `Dashboard: ${currentView}`;
-        isTyping = false; // Reset lock on view change
-        renderTeacherDashboard();
+        renderTeacherDashboard(allDoubtsCache);
     });
 });
 
-// --- 2. RENDER FUNCTION ---
-function renderTeacherDashboard() {
-    // Check if the user is currently focused on a textarea or if the lock is on
-    if (isTyping || (document.activeElement && document.activeElement.tagName === 'TEXTAREA')) {
+// 2. REAL-TIME LISTENER
+const q = query(collection(db, "doubts"), orderBy("timestamp", "desc"));
+
+onSnapshot(q, (snapshot) => {
+    allDoubtsCache = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+    }));
+    renderTeacherDashboard(allDoubtsCache);
+});
+
+// 3. RENDER DASHBOARD
+function renderTeacherDashboard(doubts) {
+    // If user is typing in a textarea, DO NOT re-render the admin panel part
+    // This prevents the text box from disappearing while typing
+    if (document.activeElement && document.activeElement.tagName === 'TEXTAREA') {
+        // We only update the counts and side feed, but skip the main cards
+        renderClassFeed(doubts);
+        updateCounts(doubts);
         return; 
     }
 
-    const allDoubts = JSON.parse(localStorage.getItem('allDoubts')) || [];
     const header = adminPanel.querySelector('.section-header');
-    
     adminPanel.innerHTML = '';
     if(header) adminPanel.appendChild(header);
 
     let filtered = [];
-    if (currentView === "New Questions") filtered = allDoubts.filter(d => d.status === "Pending");
-    else if (currentView === "Answered") filtered = allDoubts.filter(d => d.status === "Answered");
-    else if (currentView === "Flagged") filtered = allDoubts.filter(d => d.status === "Spam");
+    if (currentView === "New Questions") filtered = doubts.filter(d => d.status === "Pending");
+    else if (currentView === "Answered") filtered = doubts.filter(d => d.status === "Answered");
+    else if (currentView === "Flagged") filtered = doubts.filter(d => d.status === "Spam");
 
     filtered.forEach(doubt => {
         const card = document.createElement('div');
         card.className = 'card';
+        if(doubt.status === 'Pending') card.classList.add('urgent'); // Visual cue
+
+        // We attach the ID to the button dataset to retrieve it later
         card.innerHTML = `
             <p class="label">${doubt.subject} Question:</p>
             <p class="content">${doubt.question}</p>
             ${doubt.answer ? `<p style="color:green; margin:5px 0;"><strong>Ans:</strong> ${doubt.answer}</p>` : ''}
             
-            ${doubt.status === 'Pending' ? `<textarea id="ans-${doubt.id}" placeholder="Type answer..." onfocus="setTyping(true)" onblur="setTyping(false)"></textarea>` : ''}
+            ${doubt.status === 'Pending' ? `<textarea id="ans-${doubt.id}" placeholder="Type answer..."></textarea>` : ''}
             
             <div class="card-footer">
                 <div class="btns">
-                    ${doubt.status === 'Pending' ? `<button class="btn-gray" onclick="submitAnswer(${doubt.id})">Post Answer</button>` : ''}
-                    ${doubt.status !== 'Spam' ? `<button class="btn-blue" onclick="markSpam(${doubt.id})">Spam</button>` : `<button class="btn-gray" onclick="restoreDoubt(${doubt.id})">Restore</button>`}
+                    ${doubt.status === 'Pending' ? `<button class="btn-gray submit-ans-btn" data-id="${doubt.id}">Post Answer</button>` : ''}
+                    ${doubt.status !== 'Spam' ? `<button class="btn-blue spam-btn" data-id="${doubt.id}">Spam</button>` : `<button class="btn-gray restore-btn" data-id="${doubt.id}">Restore</button>`}
                 </div>
             </div>
         `;
         adminPanel.appendChild(card);
     });
 
-    renderClassFeed(allDoubts);
-    updateCounts(allDoubts);
+    // Re-attach event listeners because we replaced innerHTML
+    attachEventListeners();
+    renderClassFeed(doubts);
+    updateCounts(doubts);
 }
 
-// --- 3. HELPER FUNCTIONS ---
+// 4. EVENT LISTENERS (Delegation or Re-attachment)
+function attachEventListeners() {
+    document.querySelectorAll('.submit-ans-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => submitAnswer(e.target.dataset.id));
+    });
+    document.querySelectorAll('.spam-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => updateStatus(e.target.dataset.id, "Spam"));
+    });
+    document.querySelectorAll('.restore-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => updateStatus(e.target.dataset.id, "Pending"));
+    });
+}
 
-window.setTyping = function(status) {
-    // If there is text in the box, keep it locked. If empty and blurred, unlock.
-    const activeEntry = document.activeElement;
-    if (!status && activeEntry && activeEntry.value === "") {
-        isTyping = false;
-    } else {
-        isTyping = status;
-    }
-};
+// 5. ACTIONS
+async function submitAnswer(id) {
+    const textarea = document.getElementById(`ans-${id}`);
+    const val = textarea.value.trim();
+    if (!val) return alert("Please type an answer!");
 
-window.renderClassFeed = function(allDoubts) {
+    const doubtRef = doc(db, "doubts", id);
+    await updateDoc(doubtRef, {
+        answer: val,
+        status: "Answered"
+    });
+}
+
+async function updateStatus(id, status) {
+    const doubtRef = doc(db, "doubts", id);
+    await updateDoc(doubtRef, {
+        status: status
+    });
+}
+
+// 6. HELPER: Render Side Feed
+function renderClassFeed(doubts) {
     if (!feedGrid) return;
     feedGrid.innerHTML = '';
     const colorMap = { 'f-blue': 'blue', 'f-orange': 'orange', 'f-green': 'green' };
 
-    allDoubts.slice().reverse().forEach(doubt => {
+    // Show top 5 recent interactions
+    doubts.slice(0, 5).forEach(doubt => {
         const tile = document.createElement('div');
         tile.className = `tile ${colorMap[doubt.classColor] || 'blue'}`;
         tile.innerHTML = `
@@ -83,48 +125,13 @@ window.renderClassFeed = function(allDoubts) {
         `;
         feedGrid.appendChild(tile);
     });
-};
-
-window.submitAnswer = function(id) {
-    const textarea = document.getElementById(`ans-${id}`);
-    const val = textarea.value.trim();
-    if (!val) return alert("Please type an answer!");
-
-    let db = JSON.parse(localStorage.getItem('allDoubts'));
-    const i = db.findIndex(d => d.id === id);
-    db[i].answer = val;
-    db[i].status = "Answered";
-    
-    localStorage.setItem('allDoubts', JSON.stringify(db));
-    
-    isTyping = false; // Unlock after submission
-    renderTeacherDashboard();
-};
-
-window.markSpam = function(id) {
-    let db = JSON.parse(localStorage.getItem('allDoubts'));
-    const i = db.findIndex(d => d.id === id);
-    db[i].status = "Spam";
-    localStorage.setItem('allDoubts', JSON.stringify(db));
-    renderTeacherDashboard();
-};
-
-window.restoreDoubt = function(id) {
-    let db = JSON.parse(localStorage.getItem('allDoubts'));
-    const i = db.findIndex(d => d.id === id);
-    db[i].status = "Pending";
-    localStorage.setItem('allDoubts', JSON.stringify(db));
-    renderTeacherDashboard();
-};
-
-function updateCounts(db) {
-    const counts = document.querySelectorAll('.dropdown-box .count');
-    if(counts.length >= 3) {
-        counts[0].innerText = `(${db.filter(d => d.status === "Pending").length})`;
-        counts[1].innerText = `(${db.filter(d => d.status === "Answered").length})`;
-        counts[2].innerText = `(${db.filter(d => d.status === "Spam").length})`;
-    }
 }
 
-renderTeacherDashboard();
-setInterval(renderTeacherDashboard, 4000);
+function updateCounts(doubts) {
+    const counts = document.querySelectorAll('.dropdown-box .count');
+    if(counts.length >= 3) {
+        counts[0].innerText = `(${doubts.filter(d => d.status === "Pending").length})`;
+        counts[1].innerText = `(${doubts.filter(d => d.status === "Answered").length})`;
+        counts[2].innerText = `(${doubts.filter(d => d.status === "Spam").length})`;
+    }
+}

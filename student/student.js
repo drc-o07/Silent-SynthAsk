@@ -1,15 +1,5 @@
-
-
-
-
-
-
-
-
-
-
-
-
+import { db } from './firebase-config.js';
+import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const searchInput = document.getElementById('searchBar');
 const subjectCards = document.querySelectorAll('.subject-card');
@@ -22,127 +12,121 @@ const modalTitle = document.getElementById('modalTitle');
 
 let currentSubject = "";
 let currentClass = "";
-let currentFilter = "Most Recent"; // Tracks the dropdown selection
+let currentFilter = "Most Recent"; 
 
-// --- 1. YOUR ORIGINAL SEARCH LOGIC ---
+// 1. REAL-TIME LISTENER (Replaces setInterval)
+// This runs automatically whenever the database changes
+const q = query(collection(db, "doubts"), orderBy("timestamp", "desc"));
+
+onSnapshot(q, (snapshot) => {
+    // Convert snapshot to array
+    const allDoubts = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+    }));
+    
+    renderFeed(allDoubts);
+});
+
+// 2. SEARCH LOGIC
 searchInput.addEventListener('input', () => {
+    // We trigger a re-render using the data we already have in memory would be best,
+    // but for simplicity, we can just filter DOM nodes or re-fetch.
+    // Let's stick to your DOM filter method which is fast for small lists.
     const query = searchInput.value.toLowerCase();
-
-    // Filter Subject Cards
-    subjectCards.forEach(card => {
-        const subjectName = card.querySelector('span').textContent.toLowerCase();
-        card.style.display = subjectName.includes(query) ? 'flex' : 'none';
-    });
-
-    // Filter Feed Items
-    const feedItems = document.querySelectorAll('.feed-item');
-    feedItems.forEach(item => {
-        const postText = item.innerText.toLowerCase();
-        item.style.display = postText.includes(query) ? 'flex' : 'none';
+    
+    document.querySelectorAll('.feed-item').forEach(item => {
+        const text = item.innerText.toLowerCase();
+        item.style.display = text.includes(query) ? 'flex' : 'none';
     });
 });
 
-// --- 2. INTEGRATED DROPDOWN FILTER LOGIC ---
-// Listens for clicks on your dropdown menu items without breaking your original code
-document.querySelectorAll('.messages-dropdown-container li, .dropdown-box li').forEach(item => {
-    item.addEventListener('click', () => {
-        // Gets text like "Questions Asked" or "Most Recent"
-        currentFilter = item.childNodes[0].textContent.trim();
-        renderFeed(); 
-    });
-});
-
-// --- 3. YOUR ORIGINAL MODAL TRIGGER ---
+// 3. MODAL TRIGGERS
 subjectCards.forEach(card => {
     card.addEventListener('click', () => {
         currentSubject = card.querySelector('span').textContent;
         currentClass = card.classList[1].replace('c-', 'f-'); 
-        
         modalTitle.innerText = `Ask a ${currentSubject} Doubt`;
         modal.style.display = "block";
     });
 });
 
-// --- 4. YOUR ORIGINAL SUBMIT LOGIC (Updated to save to Shared Storage) ---
-submitBtn.addEventListener('click', () => {
+// 4. SUBMIT TO FIRESTORE
+submitBtn.addEventListener('click', async () => {
     const question = doubtText.value.trim();
     
     if (question !== "") {
-        const newDoubt = {
-            id: Date.now(),
-            subject: currentSubject,
-            classColor: currentClass,
-            question: question,
-            answer: null,
-            status: "Pending"
-        };
+        try {
+            submitBtn.disabled = true;
+            submitBtn.innerText = "Posting...";
 
-        // Save to Shared Storage
-        const allDoubts = JSON.parse(localStorage.getItem('allDoubts')) || [];
-        allDoubts.push(newDoubt);
-        localStorage.setItem('allDoubts', JSON.stringify(allDoubts));
+            await addDoc(collection(db, "doubts"), {
+                subject: currentSubject,
+                classColor: currentClass,
+                question: question,
+                answer: null,
+                status: "Pending",
+                timestamp: serverTimestamp() // Uses server time
+            });
 
-        // Reset and close
-        doubtText.value = "";
-        modal.style.display = "none";
-        
-        // Refresh the UI
-        renderFeed();
+            doubtText.value = "";
+            modal.style.display = "none";
+        } catch (e) {
+            console.error("Error adding document: ", e);
+            alert("Error posting doubt. Check console.");
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerText = "Post to Feed";
+        }
     }
 });
 
-// --- 5. INTEGRATED RENDER FUNCTION (Handles Filters and Anti-Refresh for Text) ---
-function renderFeed() {
+// 5. RENDER FUNCTION
+function renderFeed(doubts) {
     if (!feedGrid) return;
+    
+    // Safety check: Don't wipe the grid if user is selecting text (optional)
+    feedGrid.innerHTML = '';
 
-    // PROTECTION: If the user is currently typing in a textarea, skip the refresh
-    // This prevents the text from disappearing every 3 seconds
-    if (document.activeElement && document.activeElement.tagName === "TEXTAREA") {
-        return; 
-    }
-
-    feedGrid.innerHTML = ''; // Clear to prevent duplicates
-    let allDoubts = JSON.parse(localStorage.getItem('allDoubts')) || [];
-
-    // Apply Dropdown Filtering
-    if (currentFilter === "Questions Asked") {
-        // Only show doubts that haven't been flagged as spam
-        allDoubts = allDoubts.filter(doubt => doubt.status !== "Spam");
-    }
-
-    // Show latest doubts first
-    allDoubts.reverse().forEach(doubt => {
+    doubts.forEach(doubt => {
         const newPost = document.createElement('div');
-        newPost.className = `feed-item ${doubt.classColor}`; 
+        newPost.className = `feed-item ${doubt.classColor}`;
         
-        newPost.innerHTML = `
-            <div>
-                <small style="opacity: 0.8;">${doubt.subject}</small>
-                <p><strong>Student</strong><br>${doubt.question}</p>
-                ${doubt.answer ? 
-                    `<div style="margin-top:10px; padding:10px; background:rgba(255,255,255,0.5); border-radius:5px;">
-                        <strong>Teacher:</strong><br>${doubt.answer}
-                    </div>` : 
-                    `<p style="font-style:italic; font-size:0.8rem;">Waiting for teacher reply...</p>`
-                }
-            </div>
-            <button class="btn">${doubt.answer ? 'Thank!' : 'Reply'}</button>
-        `;
+        // SECURITY FIX: Use textContent instead of innerHTML for user input
+        const subjectEl = document.createElement('small');
+        subjectEl.style.opacity = '0.8';
+        subjectEl.textContent = doubt.subject;
+
+        const pEl = document.createElement('p');
+        const strongEl = document.createElement('strong');
+        strongEl.textContent = "Student";
+        pEl.appendChild(strongEl);
+        pEl.appendChild(document.createElement('br'));
+        pEl.appendChild(document.createTextNode(doubt.question));
+
+        newPost.appendChild(subjectEl);
+        newPost.appendChild(pEl);
+
+        if(doubt.answer) {
+            const ansDiv = document.createElement('div');
+            ansDiv.style.marginTop = "10px";
+            ansDiv.style.padding = "10px";
+            ansDiv.style.background = "rgba(255,255,255,0.5)";
+            ansDiv.style.borderRadius = "5px";
+            ansDiv.innerHTML = `<strong>Teacher:</strong> ${doubt.answer}`; // Trusted teacher input
+            newPost.appendChild(ansDiv);
+        } else {
+            const waitP = document.createElement('p');
+            waitP.style.fontStyle = "italic";
+            waitP.style.fontSize = "0.8rem";
+            waitP.textContent = "Waiting for teacher reply...";
+            newPost.appendChild(waitP);
+        }
+
         feedGrid.appendChild(newPost);
     });
-
-    // Empty state message
-    if (allDoubts.length === 0) {
-        feedGrid.innerHTML = `<p style="text-align:center; color:gray; padding:20px; width:100%;">No questions found in "${currentFilter}".</p>`;
-    }
 }
 
 // Modal Helpers
 closeBtn.onclick = () => modal.style.display = "none";
 window.onclick = (e) => { if (e.target == modal) modal.style.display = "none"; };
-
-// Run on page load
-renderFeed();
-
-// Auto-refresh every 3 seconds (Will respect the 'is typing' check above)
-setInterval(renderFeed, 3000);
