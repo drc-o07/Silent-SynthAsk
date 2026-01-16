@@ -9,21 +9,38 @@ const modalTitle = document.getElementById('modalTitle');
 
 let currentSubject = "";
 let currentClass = "";
+let currentFilter = "Most Recent"; // Tracks the dropdown selection
 
-// 1. Subject Search Logic
+// --- 1. SEARCH LOGIC ---
 searchInput.addEventListener('input', () => {
-    const filter = searchInput.value.toLowerCase();
+    const query = searchInput.value.toLowerCase();
+
     subjectCards.forEach(card => {
-        const text = card.querySelector('span').textContent.toLowerCase();
-        card.style.display = text.includes(filter) ? 'flex' : 'none';
+        const subjectName = card.querySelector('span').textContent.toLowerCase();
+        card.style.display = subjectName.includes(query) ? 'flex' : 'none';
+    });
+
+    const feedItems = document.querySelectorAll('.feed-item');
+    feedItems.forEach(item => {
+        const postText = item.innerText.toLowerCase();
+        item.style.display = postText.includes(query) ? 'flex' : 'none';
     });
 });
 
-// 2. Click Subject to Open Modal
+// --- 2. DROPDOWN FILTER LOGIC ---
+// This listens for clicks on your dropdown menu items
+document.querySelectorAll('.messages-dropdown-container li, .dropdown-box li').forEach(item => {
+    item.addEventListener('click', () => {
+        // Gets text like "Questions Asked" or "Most Recent"
+        currentFilter = item.childNodes[0].textContent.trim();
+        renderFeed(); 
+    });
+});
+
+// --- 3. MODAL TRIGGER ---
 subjectCards.forEach(card => {
     card.addEventListener('click', () => {
         currentSubject = card.querySelector('span').textContent;
-        // This maps 'c-blue' to 'f-blue', etc.
         currentClass = card.classList[1].replace('c-', 'f-'); 
         
         modalTitle.innerText = `Ask a ${currentSubject} Doubt`;
@@ -31,56 +48,76 @@ subjectCards.forEach(card => {
     });
 });
 
-// 3. Submit Doubt (Adds to the Common Feed)
+// --- 4. SUBMIT LOGIC ---
 submitBtn.addEventListener('click', () => {
     const question = doubtText.value.trim();
     
     if (question !== "") {
+        const newDoubt = {
+            id: Date.now(),
+            subject: currentSubject,
+            classColor: currentClass,
+            question: question,
+            answer: null,
+            status: "Pending"
+        };
+
+        const allDoubts = JSON.parse(localStorage.getItem('allDoubts')) || [];
+        allDoubts.push(newDoubt);
+        localStorage.setItem('allDoubts', JSON.stringify(allDoubts));
+
+        doubtText.value = "";
+        modal.style.display = "none";
+        
+        renderFeed();
+    }
+});
+
+// --- 5. FULLY INTEGRATED RENDER FUNCTION ---
+function renderFeed() {
+    if (!feedGrid) return;
+    feedGrid.innerHTML = ''; 
+    let allDoubts = JSON.parse(localStorage.getItem('allDoubts')) || [];
+
+    // Apply Dropdown Filtering
+    if (currentFilter === "Questions Asked") {
+        // Shows only doubts that aren't marked as spam by the teacher
+        allDoubts = allDoubts.filter(doubt => doubt.status !== "Spam");
+    }
+
+    // Show latest doubts first
+    allDoubts.reverse().forEach(doubt => {
         const newPost = document.createElement('div');
-        // This ensures the background color is applied
-        newPost.className = `feed-item ${currentClass}`; 
+        newPost.className = `feed-item ${doubt.classColor}`; 
         
         newPost.innerHTML = `
             <div>
-                <small style="opacity: 0.8;">${currentSubject}</small>
-                <p><strong>Student</strong><br>${question}</p>
+                <small style="opacity: 0.8;">${doubt.subject}</small>
+                <p><strong>Student</strong><br>${doubt.question}</p>
+                ${doubt.answer ? 
+                    `<div style="margin-top:10px; padding:10px; background:rgba(255,255,255,0.5); border-radius:5px;">
+                        <strong>Teacher:</strong><br>${doubt.answer}
+                    </div>` : 
+                    `<p style="font-style:italic; font-size:0.8rem;">Waiting for teacher reply...</p>`
+                }
             </div>
-            <button class="btn">Reply</button>
+            <button class="btn">${doubt.answer ? 'Thank!' : 'Reply'}</button>
         `;
+        feedGrid.appendChild(newPost);
+    });
 
-        // Prepend so newest appears at the top of the common feed
-        feedGrid.prepend(newPost);
-
-        // Reset and close
-        doubtText.value = "";
-        modal.style.display = "none";
+    // Empty state message
+    if (allDoubts.length === 0) {
+        feedGrid.innerHTML = `<p style="text-align:center; color:gray; padding:20px; width:100%;">No questions found in "${currentFilter}".</p>`;
     }
-});
+}
 
 // Modal Helpers
 closeBtn.onclick = () => modal.style.display = "none";
 window.onclick = (e) => { if (e.target == modal) modal.style.display = "none"; };
 
-// Unified Search for Subjects AND Feed Topics
-searchInput.addEventListener('input', () => {
-    const query = searchInput.value.toLowerCase();
+// Run on page load
+renderFeed();
 
-    // 1. Filter Subject Cards
-    subjectCards.forEach(card => {
-        const subjectName = card.querySelector('span').textContent.toLowerCase();
-        card.style.display = subjectName.includes(query) ? 'flex' : 'none';
-    });
-
-    // 2. Filter Feed Items (Topics)
-    const feedItems = document.querySelectorAll('.feed-item');
-    feedItems.forEach(item => {
-        const postText = item.querySelector('p').innerText.toLowerCase();
-        
-        // Show item if it matches the search query, otherwise hide it
-        if (postText.includes(query)) {
-            item.style.display = 'flex';
-        } else {
-            item.style.display = 'none';
-        }
-    });
-});
+// Auto-refresh every 3 seconds
+setInterval(renderFeed, 3000);
