@@ -1,33 +1,37 @@
+
 const adminPanel = document.querySelector('.admin-panel');
 const feedGrid = document.querySelector('.feed-panel .feed-grid');
 let currentView = "New Questions"; 
+let isTyping = false; // THE LOCK: prevents refresh while typing
 
 // --- 1. HANDLE DROPDOWN CLICKS ---
 document.querySelectorAll('.messages-dropdown-container li').forEach(item => {
     item.addEventListener('click', () => {
-        // Get text and remove the count part like "(25)"
         currentView = item.childNodes[0].textContent.trim();
         document.querySelector('.section-header h2').innerText = `Dashboard: ${currentView}`;
+        isTyping = false; // Reset lock on view change
         renderTeacherDashboard();
     });
 });
 
 // --- 2. RENDER FUNCTION ---
 function renderTeacherDashboard() {
+    // Check if the user is currently focused on a textarea or if the lock is on
+    if (isTyping || (document.activeElement && document.activeElement.tagName === 'TEXTAREA')) {
+        return; 
+    }
+
     const allDoubts = JSON.parse(localStorage.getItem('allDoubts')) || [];
-    
-    // Clear Admin Panel but keep header
     const header = adminPanel.querySelector('.section-header');
+    
     adminPanel.innerHTML = '';
     if(header) adminPanel.appendChild(header);
 
-    // Filter Logic
     let filtered = [];
     if (currentView === "New Questions") filtered = allDoubts.filter(d => d.status === "Pending");
     else if (currentView === "Answered") filtered = allDoubts.filter(d => d.status === "Answered");
     else if (currentView === "Flagged") filtered = allDoubts.filter(d => d.status === "Spam");
 
-    // Display Cards
     filtered.forEach(doubt => {
         const card = document.createElement('div');
         card.className = 'card';
@@ -36,7 +40,7 @@ function renderTeacherDashboard() {
             <p class="content">${doubt.question}</p>
             ${doubt.answer ? `<p style="color:green; margin:5px 0;"><strong>Ans:</strong> ${doubt.answer}</p>` : ''}
             
-            ${doubt.status === 'Pending' ? `<textarea id="ans-${doubt.id}" placeholder="Type answer..."></textarea>` : ''}
+            ${doubt.status === 'Pending' ? `<textarea id="ans-${doubt.id}" placeholder="Type answer..." onfocus="setTyping(true)" onblur="setTyping(false)"></textarea>` : ''}
             
             <div class="card-footer">
                 <div class="btns">
@@ -48,12 +52,21 @@ function renderTeacherDashboard() {
         adminPanel.appendChild(card);
     });
 
-    // Update the right-side feed
     renderClassFeed(allDoubts);
     updateCounts(allDoubts);
 }
 
-// --- 3. FIX: DEFINING THE MISSING FUNCTIONS ON WINDOW ---
+// --- 3. HELPER FUNCTIONS ---
+
+window.setTyping = function(status) {
+    // If there is text in the box, keep it locked. If empty and blurred, unlock.
+    const activeEntry = document.activeElement;
+    if (!status && activeEntry && activeEntry.value === "") {
+        isTyping = false;
+    } else {
+        isTyping = status;
+    }
+};
 
 window.renderClassFeed = function(allDoubts) {
     if (!feedGrid) return;
@@ -73,7 +86,8 @@ window.renderClassFeed = function(allDoubts) {
 };
 
 window.submitAnswer = function(id) {
-    const val = document.getElementById(`ans-${id}`).value.trim();
+    const textarea = document.getElementById(`ans-${id}`);
+    const val = textarea.value.trim();
     if (!val) return alert("Please type an answer!");
 
     let db = JSON.parse(localStorage.getItem('allDoubts'));
@@ -82,6 +96,8 @@ window.submitAnswer = function(id) {
     db[i].status = "Answered";
     
     localStorage.setItem('allDoubts', JSON.stringify(db));
+    
+    isTyping = false; // Unlock after submission
     renderTeacherDashboard();
 };
 
@@ -110,6 +126,5 @@ function updateCounts(db) {
     }
 }
 
-// Start
 renderTeacherDashboard();
 setInterval(renderTeacherDashboard, 4000);
