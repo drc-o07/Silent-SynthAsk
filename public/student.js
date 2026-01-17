@@ -69,16 +69,22 @@ submitBtn.addEventListener('click', function() {
 // --- 5. REAL-TIME FEED ---
 db.collection("doubts").orderBy("timestamp", "desc").onSnapshot((snapshot) => {
     feedGrid.innerHTML = ''; 
+    
     if (snapshot.empty) {
         feedGrid.innerHTML = '<p style="text-align:center; padding:20px; opacity:0.7;">No questions asked yet.</p>';
         return;
     }
+
     snapshot.forEach((doc) => {
         const doubt = doc.data();
+
+        // *** THIS IS THE NEW FIX ***
+        // If the status is Spam, skip this item and don't show it to the student
+        if (doubt.status === "Spam") return; 
+
         const newPost = document.createElement('div');
         newPost.className = `feed-item ${doubt.classColor || 'f-blue'}`; 
         
-        // Darker background for answer box in dark mode is handled by transparency
         let answerHtml = doubt.answer 
             ? `<div style="margin-top:10px; padding:10px; background:rgba(0,0,0,0.2); border-radius:5px;"><strong>Teacher:</strong><br>${doubt.answer}</div>` 
             : `<p style="font-style:italic; font-size:0.8rem; opacity:0.8;">Waiting for teacher reply...</p>`;
@@ -108,17 +114,16 @@ searchInput.addEventListener('input', (e) => {
 
 // --- 7. DARK MODE LOGIC ---
 const toggleBtn = document.getElementById('darkModeToggle');
-const body = document.body;
-
-// Check saved preference on load
-if (localStorage.getItem('darkMode') === 'enabled') {
-    body.classList.add('dark-mode');
-    toggleBtn.innerText = "☀️";
+if(toggleBtn) {
+    const body = document.body;
+    if (localStorage.getItem('darkMode') === 'enabled') {
+        body.classList.add('dark-mode');
+        toggleBtn.innerText = "☀️";
+    }
+    toggleBtn.addEventListener('click', () => {
+        body.classList.toggle('dark-mode');
+        const isDark = body.classList.contains('dark-mode');
+        localStorage.setItem('darkMode', isDark ? 'enabled' : 'disabled');
+        toggleBtn.innerText = isDark ? "☀️" : "🌙";
+    });
 }
-
-toggleBtn.addEventListener('click', () => {
-    body.classList.toggle('dark-mode');
-    const isDark = body.classList.contains('dark-mode');
-    localStorage.setItem('darkMode', isDark ? 'enabled' : 'disabled');
-    toggleBtn.innerText = isDark ? "☀️" : "🌙";
-});
