@@ -1,2 +1,2 @@
 # Silent-SynthAsk
-A platform for students to ask their professors any question regarding their course anonymously.
+Silent Synth Ask is a specialized communication bridge inspired by the "NGL" anonymous trend. It provides a secure, digital space where students can ask doubts without social anxiety.
