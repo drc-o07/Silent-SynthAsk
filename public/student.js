@@ -1,7 +1,20 @@
-import { db } from './firebase-config.js';
-import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+// --- 1. FIREBASE CONFIGURATION ---
+const firebaseConfig = {
+  apiKey: "AIzaSyBAK95zAZkX4bj45xnqXS9LMTPjQjcDOBo",
+  authDomain: "silent-synthask.firebaseapp.com",
+  projectId: "silent-synthask",
+  storageBucket: "silent-synthask.firebasestorage.app",
+  messagingSenderId: "273937385011",
+  appId: "1:273937385011:web:a1e463da178a3b42278546"
+};
 
-const searchInput = document.getElementById('searchBar');
+// Initialize connection
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
+const db = firebase.firestore();
+
+// --- 2. SELECT ELEMENTS ---
 const subjectCards = document.querySelectorAll('.subject-card');
 const feedGrid = document.querySelector('.feed-grid');
 const modal = document.getElementById('doubtModal');
@@ -9,124 +22,100 @@ const closeBtn = document.querySelector('.close-btn');
 const submitBtn = document.getElementById('submitDoubt');
 const doubtText = document.getElementById('doubtText');
 const modalTitle = document.getElementById('modalTitle');
+const searchInput = document.getElementById('searchBar');
 
-let currentSubject = "";
-let currentClass = "";
-let currentFilter = "Most Recent"; 
+let currentSubject = "General";
+let currentClass = "f-blue";
 
-// 1. REAL-TIME LISTENER (Replaces setInterval)
-// This runs automatically whenever the database changes
-const q = query(collection(db, "doubts"), orderBy("timestamp", "desc"));
-
-onSnapshot(q, (snapshot) => {
-    // Convert snapshot to array
-    const allDoubts = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-    }));
-    
-    renderFeed(allDoubts);
-});
-
-// 2. SEARCH LOGIC
-searchInput.addEventListener('input', () => {
-    // We trigger a re-render using the data we already have in memory would be best,
-    // but for simplicity, we can just filter DOM nodes or re-fetch.
-    // Let's stick to your DOM filter method which is fast for small lists.
-    const query = searchInput.value.toLowerCase();
-    
-    document.querySelectorAll('.feed-item').forEach(item => {
-        const text = item.innerText.toLowerCase();
-        item.style.display = text.includes(query) ? 'flex' : 'none';
-    });
-});
-
-// 3. MODAL TRIGGERS
+// --- 3. CLICKING A SUBJECT (Opens the Box) ---
 subjectCards.forEach(card => {
     card.addEventListener('click', () => {
+        // 1. Get the subject name from the card text
         currentSubject = card.querySelector('span').textContent;
-        currentClass = card.classList[1].replace('c-', 'f-'); 
+        
+        // 2. Get the color (e.g., convert 'c-blue' to 'f-blue' for the feed)
+        const colorClass = card.classList[1]; 
+        currentClass = colorClass ? colorClass.replace('c-', 'f-') : 'f-blue';
+
+        // 3. Update Title and Show Modal
         modalTitle.innerText = `Ask a ${currentSubject} Doubt`;
         modal.style.display = "block";
+        doubtText.focus(); // Automatically put cursor in box
     });
 });
 
-// 4. SUBMIT TO FIRESTORE
-submitBtn.addEventListener('click', async () => {
+// --- 4. SUBMITTING THE QUESTION ---
+submitBtn.addEventListener('click', function() {
     const question = doubtText.value.trim();
     
     if (question !== "") {
-        try {
-            submitBtn.disabled = true;
-            submitBtn.innerText = "Posting...";
+        submitBtn.innerText = "Posting...";
+        submitBtn.disabled = true;
 
-            await addDoc(collection(db, "doubts"), {
-                subject: currentSubject,
-                classColor: currentClass,
-                question: question,
-                answer: null,
-                status: "Pending",
-                timestamp: serverTimestamp() // Uses server time
-            });
-
-            doubtText.value = "";
+        // Save to Cloud Database
+        db.collection("doubts").add({
+            subject: currentSubject,
+            classColor: currentClass,
+            question: question,
+            answer: null, // No answer yet
+            status: "Pending", // Needs teacher attention
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        }).then(() => {
+            // Success!
+            doubtText.value = ""; 
             modal.style.display = "none";
-        } catch (e) {
-            console.error("Error adding document: ", e);
-            alert("Error posting doubt. Check console.");
-        } finally {
-            submitBtn.disabled = false;
             submitBtn.innerText = "Post to Feed";
-        }
+            submitBtn.disabled = false;
+        }).catch((error) => {
+            console.error("Error:", error);
+            alert("Could not post. Check internet connection.");
+            submitBtn.disabled = false;
+        });
+    } else {
+        alert("Please type a question!");
     }
 });
 
-// 5. RENDER FUNCTION
-function renderFeed(doubts) {
-    if (!feedGrid) return;
-    
-    // Safety check: Don't wipe the grid if user is selecting text (optional)
-    feedGrid.innerHTML = '';
+// --- 5. REAL-TIME FEED (Updates Automatically) ---
+db.collection("doubts").orderBy("timestamp", "desc").onSnapshot((snapshot) => {
+    feedGrid.innerHTML = ''; // Clear list
 
-    doubts.forEach(doubt => {
+    if (snapshot.empty) {
+        feedGrid.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">No questions asked yet.</p>';
+        return;
+    }
+
+    snapshot.forEach((doc) => {
+        const doubt = doc.data();
         const newPost = document.createElement('div');
-        newPost.className = `feed-item ${doubt.classColor}`;
+        newPost.className = `feed-item ${doubt.classColor || 'f-blue'}`; // Apply color
         
-        // SECURITY FIX: Use textContent instead of innerHTML for user input
-        const subjectEl = document.createElement('small');
-        subjectEl.style.opacity = '0.8';
-        subjectEl.textContent = doubt.subject;
+        // Logic: If there is an answer, show it. If not, show "Waiting..."
+        let answerHtml = doubt.answer 
+            ? `<div style="margin-top:10px; padding:10px; background:rgba(255,255,255,0.3); border-radius:5px;"><strong>Teacher:</strong><br>${doubt.answer}</div>` 
+            : `<p style="font-style:italic; font-size:0.8rem; opacity:0.8;">Waiting for teacher reply...</p>`;
 
-        const pEl = document.createElement('p');
-        const strongEl = document.createElement('strong');
-        strongEl.textContent = "Student";
-        pEl.appendChild(strongEl);
-        pEl.appendChild(document.createElement('br'));
-        pEl.appendChild(document.createTextNode(doubt.question));
-
-        newPost.appendChild(subjectEl);
-        newPost.appendChild(pEl);
-
-        if(doubt.answer) {
-            const ansDiv = document.createElement('div');
-            ansDiv.style.marginTop = "10px";
-            ansDiv.style.padding = "10px";
-            ansDiv.style.background = "rgba(255,255,255,0.5)";
-            ansDiv.style.borderRadius = "5px";
-            ansDiv.innerHTML = `<strong>Teacher:</strong> ${doubt.answer}`; // Trusted teacher input
-            newPost.appendChild(ansDiv);
-        } else {
-            const waitP = document.createElement('p');
-            waitP.style.fontStyle = "italic";
-            waitP.style.fontSize = "0.8rem";
-            waitP.textContent = "Waiting for teacher reply...";
-            newPost.appendChild(waitP);
-        }
-
+        newPost.innerHTML = `
+            <div>
+                <small style="opacity: 0.9; font-weight:bold;">${doubt.subject}</small>
+                <p style="margin-top:5px; font-size:1.1rem;">${doubt.question}</p>
+                ${answerHtml}
+            </div>
+        `;
         feedGrid.appendChild(newPost);
     });
-}
+});
 
-// Modal Helpers
+// --- 6. CLOSE MODAL HELPERS ---
 closeBtn.onclick = () => modal.style.display = "none";
 window.onclick = (e) => { if (e.target == modal) modal.style.display = "none"; };
+
+// --- 7. SEARCH BAR LOGIC ---
+searchInput.addEventListener('input', (e) => {
+    const term = e.target.value.toLowerCase();
+    const items = document.querySelectorAll('.feed-item');
+    items.forEach(item => {
+        const text = item.innerText.toLowerCase();
+        item.style.display = text.includes(term) ? 'flex' : 'none';
+    });
+});

@@ -1,137 +1,132 @@
-import { db } from './firebase-config.js';
-import { collection, onSnapshot, updateDoc, doc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+// --- 1. FIREBASE CONFIG ---
+const firebaseConfig = {
+  apiKey: "AIzaSyBAK95zAZkX4bj45xnqXS9LMTPjQjcDOBo",
+  authDomain: "silent-synthask.firebaseapp.com",
+  projectId: "silent-synthask",
+  storageBucket: "silent-synthask.firebasestorage.app",
+  messagingSenderId: "273937385011",
+  appId: "1:273937385011:web:a1e463da178a3b42278546"
+};
 
-const adminPanel = document.querySelector('.admin-panel');
-const feedGrid = document.querySelector('.feed-panel .feed-grid');
-let currentView = "New Questions"; 
-let allDoubtsCache = []; // Store doubts locally to filter without re-fetching
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
+const db = firebase.firestore();
 
-// 1. DROPDOWN HANDLERS
-document.querySelectorAll('.messages-dropdown-container li').forEach(item => {
-    item.addEventListener('click', () => {
-        currentView = item.childNodes[0].textContent.trim();
-        document.querySelector('.section-header h2').innerText = `Dashboard: ${currentView}`;
-        renderTeacherDashboard(allDoubtsCache);
-    });
-});
+// --- 2. SELECT ELEMENTS ---
+const container = document.getElementById('adminCardsContainer');
+const feedGrid = document.querySelector('.feed-grid');
 
-// 2. REAL-TIME LISTENER
-const q = query(collection(db, "doubts"), orderBy("timestamp", "desc"));
-
-onSnapshot(q, (snapshot) => {
-    allDoubtsCache = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-    }));
-    renderTeacherDashboard(allDoubtsCache);
-});
-
-// 3. RENDER DASHBOARD
-function renderTeacherDashboard(doubts) {
-    // If user is typing in a textarea, DO NOT re-render the admin panel part
-    // This prevents the text box from disappearing while typing
-    if (document.activeElement && document.activeElement.tagName === 'TEXTAREA') {
-        // We only update the counts and side feed, but skip the main cards
-        renderClassFeed(doubts);
-        updateCounts(doubts);
+// --- 3. LISTEN FOR QUESTIONS (Real-time) ---
+db.collection("doubts").orderBy("timestamp", "desc").onSnapshot((snapshot) => {
+    
+    // Safety check: If teacher is typing, don't refresh the whole list 
+    // (This prevents the textbox from disappearing while typing)
+    if (document.activeElement.tagName === "TEXTAREA") {
         return; 
     }
 
-    const header = adminPanel.querySelector('.section-header');
-    adminPanel.innerHTML = '';
-    if(header) adminPanel.appendChild(header);
+    const allDoubts = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+    }));
 
-    let filtered = [];
-    if (currentView === "New Questions") filtered = doubts.filter(d => d.status === "Pending");
-    else if (currentView === "Answered") filtered = doubts.filter(d => d.status === "Answered");
-    else if (currentView === "Flagged") filtered = doubts.filter(d => d.status === "Spam");
+    renderDashboard(allDoubts);
+});
 
-    filtered.forEach(doubt => {
+// --- 4. RENDER FUNCTION ---
+function renderDashboard(doubts) {
+    container.innerHTML = ''; // Clear current list
+
+    // Filter to show only Unanswered (Pending) questions first
+    const pendingDoubts = doubts.filter(d => d.status === "Pending");
+
+    if (pendingDoubts.length === 0) {
+        container.innerHTML = '<p>No new questions pending.</p>';
+    }
+
+    pendingDoubts.forEach(doubt => {
         const card = document.createElement('div');
-        card.className = 'card';
-        if(doubt.status === 'Pending') card.classList.add('urgent'); // Visual cue
-
-        // We attach the ID to the button dataset to retrieve it later
+        card.className = 'card urgent'; // 'urgent' adds the red line on the left
+        
         card.innerHTML = `
-            <p class="label">${doubt.subject} Question:</p>
-            <p class="content">${doubt.question}</p>
-            ${doubt.answer ? `<p style="color:green; margin:5px 0;"><strong>Ans:</strong> ${doubt.answer}</p>` : ''}
+            <span class="status-tag">Needs Answer</span>
+            <p class="label"><strong>${doubt.subject}</strong> Question:</p>
+            <p class="content" style="font-size:1.1rem;">${doubt.question}</p>
             
-            ${doubt.status === 'Pending' ? `<textarea id="ans-${doubt.id}" placeholder="Type answer..."></textarea>` : ''}
+            <textarea id="ans-${doubt.id}" placeholder="Type your answer here..." style="width:100%; padding:10px; margin:10px 0; border:1px solid #ddd; border-radius:5px;"></textarea>
             
             <div class="card-footer">
                 <div class="btns">
-                    ${doubt.status === 'Pending' ? `<button class="btn-gray submit-ans-btn" data-id="${doubt.id}">Post Answer</button>` : ''}
-                    ${doubt.status !== 'Spam' ? `<button class="btn-blue spam-btn" data-id="${doubt.id}">Spam</button>` : `<button class="btn-gray restore-btn" data-id="${doubt.id}">Restore</button>`}
+                    <button class="btn-blue post-btn" data-id="${doubt.id}">Post Answer</button>
+                    <button class="btn-gray spam-btn" data-id="${doubt.id}">Mark Spam</button>
                 </div>
             </div>
         `;
-        adminPanel.appendChild(card);
+        container.appendChild(card);
     });
 
-    // Re-attach event listeners because we replaced innerHTML
-    attachEventListeners();
-    renderClassFeed(doubts);
-    updateCounts(doubts);
+    // Attach click listeners to the new buttons
+    attachListeners();
+    renderSideFeed(doubts);
 }
 
-// 4. EVENT LISTENERS (Delegation or Re-attachment)
-function attachEventListeners() {
-    document.querySelectorAll('.submit-ans-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => submitAnswer(e.target.dataset.id));
+// --- 5. BUTTON ACTIONS ---
+function attachListeners() {
+    // Post Answer Buttons
+    document.querySelectorAll('.post-btn').forEach(btn => {
+        btn.onclick = (e) => {
+            const id = e.target.getAttribute('data-id');
+            const textArea = document.getElementById(`ans-${id}`);
+            const answerText = textArea.value.trim();
+
+            if (answerText) {
+                // Update Firebase
+                db.collection("doubts").doc(id).update({
+                    answer: answerText,
+                    status: "Answered"
+                });
+            } else {
+                alert("Please type an answer first.");
+            }
+        };
     });
+
+    // Spam Buttons
     document.querySelectorAll('.spam-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => updateStatus(e.target.dataset.id, "Spam"));
-    });
-    document.querySelectorAll('.restore-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => updateStatus(e.target.dataset.id, "Pending"));
-    });
-}
-
-// 5. ACTIONS
-async function submitAnswer(id) {
-    const textarea = document.getElementById(`ans-${id}`);
-    const val = textarea.value.trim();
-    if (!val) return alert("Please type an answer!");
-
-    const doubtRef = doc(db, "doubts", id);
-    await updateDoc(doubtRef, {
-        answer: val,
-        status: "Answered"
+        btn.onclick = (e) => {
+            const id = e.target.getAttribute('data-id');
+            if(confirm("Hide this question?")) {
+                db.collection("doubts").doc(id).update({
+                    status: "Spam"
+                });
+            }
+        };
     });
 }
 
-async function updateStatus(id, status) {
-    const doubtRef = doc(db, "doubts", id);
-    await updateDoc(doubtRef, {
-        status: status
-    });
-}
-
-// 6. HELPER: Render Side Feed
-function renderClassFeed(doubts) {
-    if (!feedGrid) return;
+// --- 6. SIDEBAR (History) ---
+function renderSideFeed(doubts) {
     feedGrid.innerHTML = '';
-    const colorMap = { 'f-blue': 'blue', 'f-orange': 'orange', 'f-green': 'green' };
-
-    // Show top 5 recent interactions
+    // Show the last 5 questions (even answered ones)
     doubts.slice(0, 5).forEach(doubt => {
-        const tile = document.createElement('div');
-        tile.className = `tile ${colorMap[doubt.classColor] || 'blue'}`;
-        tile.innerHTML = `
-            <p class="label">${doubt.subject}</p>
-            <p class="tile-text"><strong>Q:</strong> ${doubt.question}</p>
-            ${doubt.answer ? `<p class="tile-text"><strong>A:</strong> ${doubt.answer}</p>` : '<em>Pending...</em>'}
-        `;
-        feedGrid.appendChild(tile);
-    });
-}
+        const div = document.createElement('div');
+        div.className = `tile ${doubt.classColor || 'blue'}`;
+        div.style.padding = '15px';
+        div.style.marginBottom = '10px';
+        div.style.borderRadius = '8px';
+        div.style.color = 'white';
+        
+        // Simple Color Map fallback
+        if(doubt.classColor === 'f-orange') div.style.background = '#f5a623';
+        else if(doubt.classColor === 'f-green') div.style.background = '#5cb85c';
+        else div.style.background = '#4a90e2';
 
-function updateCounts(doubts) {
-    const counts = document.querySelectorAll('.dropdown-box .count');
-    if(counts.length >= 3) {
-        counts[0].innerText = `(${doubts.filter(d => d.status === "Pending").length})`;
-        counts[1].innerText = `(${doubts.filter(d => d.status === "Answered").length})`;
-        counts[2].innerText = `(${doubts.filter(d => d.status === "Spam").length})`;
-    }
+        div.innerHTML = `
+            <small>${doubt.subject}</small>
+            <p style="margin:5px 0;"><strong>Q:</strong> ${doubt.question}</p>
+            ${doubt.answer ? `<p style="margin:0; font-size:0.9rem; opacity:0.9;"><strong>A:</strong> ${doubt.answer}</p>` : ''}
+        `;
+        feedGrid.appendChild(div);
+    });
 }
