@@ -8,7 +8,6 @@ const firebaseConfig = {
   appId: "1:273937385011:web:a1e463da178a3b42278546"
 };
 
-// Initialize connection
 if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
 }
@@ -27,48 +26,39 @@ const searchInput = document.getElementById('searchBar');
 let currentSubject = "General";
 let currentClass = "f-blue";
 
-// --- 3. CLICKING A SUBJECT (Opens the Box) ---
+// --- 3. CLICKING A SUBJECT ---
 subjectCards.forEach(card => {
     card.addEventListener('click', () => {
-        // 1. Get the subject name from the card text
         currentSubject = card.querySelector('span').textContent;
-        
-        // 2. Get the color (e.g., convert 'c-blue' to 'f-blue' for the feed)
         const colorClass = card.classList[1]; 
         currentClass = colorClass ? colorClass.replace('c-', 'f-') : 'f-blue';
-
-        // 3. Update Title and Show Modal
         modalTitle.innerText = `Ask a ${currentSubject} Doubt`;
         modal.style.display = "block";
-        doubtText.focus(); // Automatically put cursor in box
+        doubtText.focus();
     });
 });
 
-// --- 4. SUBMITTING THE QUESTION ---
+// --- 4. SUBMITTING ---
 submitBtn.addEventListener('click', function() {
     const question = doubtText.value.trim();
-    
     if (question !== "") {
         submitBtn.innerText = "Posting...";
         submitBtn.disabled = true;
-
-        // Save to Cloud Database
         db.collection("doubts").add({
             subject: currentSubject,
             classColor: currentClass,
             question: question,
-            answer: null, // No answer yet
-            status: "Pending", // Needs teacher attention
+            answer: null,
+            status: "Pending",
             timestamp: firebase.firestore.FieldValue.serverTimestamp()
         }).then(() => {
-            // Success!
             doubtText.value = ""; 
             modal.style.display = "none";
             submitBtn.innerText = "Post to Feed";
             submitBtn.disabled = false;
         }).catch((error) => {
             console.error("Error:", error);
-            alert("Could not post. Check internet connection.");
+            alert("Could not post.");
             submitBtn.disabled = false;
         });
     } else {
@@ -76,23 +66,21 @@ submitBtn.addEventListener('click', function() {
     }
 });
 
-// --- 5. REAL-TIME FEED (Updates Automatically) ---
+// --- 5. REAL-TIME FEED ---
 db.collection("doubts").orderBy("timestamp", "desc").onSnapshot((snapshot) => {
-    feedGrid.innerHTML = ''; // Clear list
-
+    feedGrid.innerHTML = ''; 
     if (snapshot.empty) {
-        feedGrid.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">No questions asked yet.</p>';
+        feedGrid.innerHTML = '<p style="text-align:center; padding:20px; opacity:0.7;">No questions asked yet.</p>';
         return;
     }
-
     snapshot.forEach((doc) => {
         const doubt = doc.data();
         const newPost = document.createElement('div');
-        newPost.className = `feed-item ${doubt.classColor || 'f-blue'}`; // Apply color
+        newPost.className = `feed-item ${doubt.classColor || 'f-blue'}`; 
         
-        // Logic: If there is an answer, show it. If not, show "Waiting..."
+        // Darker background for answer box in dark mode is handled by transparency
         let answerHtml = doubt.answer 
-            ? `<div style="margin-top:10px; padding:10px; background:rgba(255,255,255,0.3); border-radius:5px;"><strong>Teacher:</strong><br>${doubt.answer}</div>` 
+            ? `<div style="margin-top:10px; padding:10px; background:rgba(0,0,0,0.2); border-radius:5px;"><strong>Teacher:</strong><br>${doubt.answer}</div>` 
             : `<p style="font-style:italic; font-size:0.8rem; opacity:0.8;">Waiting for teacher reply...</p>`;
 
         newPost.innerHTML = `
@@ -106,16 +94,31 @@ db.collection("doubts").orderBy("timestamp", "desc").onSnapshot((snapshot) => {
     });
 });
 
-// --- 6. CLOSE MODAL HELPERS ---
+// --- 6. HELPERS ---
 closeBtn.onclick = () => modal.style.display = "none";
 window.onclick = (e) => { if (e.target == modal) modal.style.display = "none"; };
 
-// --- 7. SEARCH BAR LOGIC ---
 searchInput.addEventListener('input', (e) => {
     const term = e.target.value.toLowerCase();
-    const items = document.querySelectorAll('.feed-item');
-    items.forEach(item => {
+    document.querySelectorAll('.feed-item').forEach(item => {
         const text = item.innerText.toLowerCase();
         item.style.display = text.includes(term) ? 'flex' : 'none';
     });
+});
+
+// --- 7. DARK MODE LOGIC ---
+const toggleBtn = document.getElementById('darkModeToggle');
+const body = document.body;
+
+// Check saved preference on load
+if (localStorage.getItem('darkMode') === 'enabled') {
+    body.classList.add('dark-mode');
+    toggleBtn.innerText = "☀️";
+}
+
+toggleBtn.addEventListener('click', () => {
+    body.classList.toggle('dark-mode');
+    const isDark = body.classList.contains('dark-mode');
+    localStorage.setItem('darkMode', isDark ? 'enabled' : 'disabled');
+    toggleBtn.innerText = isDark ? "☀️" : "🌙";
 });
