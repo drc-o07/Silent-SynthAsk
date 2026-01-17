@@ -6,41 +6,65 @@
     <title>Doubt Solver - Student</title>
     <link rel="stylesheet" href="student.css">
     
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🦉</text></svg>">
+    
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 </head>
 <body>
 
-    <div class="app-container">
-        <h1>Silent SynthAsk</h1>
-        
-        <div class="top-bar">
-            <div class="search-container">
-                <input type="text" id="searchBar" placeholder="Search for a subject or topic...">
-            </div>
-            <div class="sort-box">
-                <small>Sort By:</small><br>
-                <select class="sort-select">
-                    <option>Most Recent</option>
-                </select>
-            </div>
+    <header class="app-header">
+        <div class="brand">
+            <span class="logo-icon">🦉</span>
+            <h1>Silent SynthAsk</h1>
         </div>
+        
+        <div class="search-wrapper">
+            <input type="text" id="searchBar" placeholder="Search topics...">
+        </div>
+    </header>
 
+    <div class="app-container">
+        
         <div class="main-layout">
             <section class="subjects-column">
                 <h2>Choose Your Subject:</h2>
+                
                 <div class="subject-grid" id="subjectGrid">
-                    <div class="subject-card c-blue"><span>Science</span></div>
-                    <div class="subject-card c-orange"><span>Maths</span></div>
-                    <div class="subject-card c-yellow"><span>Art</span></div>
-                    <div class="subject-card c-purple"><span>English</span></div>
-                    <div class="subject-card c-green"><span>Biology</span></div>
-                    <div class="subject-card c-gray"><span>History</span></div>
+                    <div class="subject-card c-blue">
+                        <i>🔬</i>
+                        <span>Science</span>
+                    </div>
+                    <div class="subject-card c-orange">
+                        <i>📐</i>
+                        <span>Maths</span>
+                    </div>
+                    <div class="subject-card c-yellow">
+                        <i>🎨</i>
+                        <span>Art</span>
+                    </div>
+                    <div class="subject-card c-purple">
+                        <i>📚</i>
+                        <span>English</span>
+                    </div>
+                    <div class="subject-card c-green">
+                        <i>🧬</i>
+                        <span>Biology</span>
+                    </div>
+                    <div class="subject-card c-gray">
+                        <i>📜</i>
+                        <span>History</span>
+                    </div>
                 </div>
             </section>
 
             <section class="feed-column">
-                <h2>Class Feed</h2>
+                <div class="feed-header">
+                    <h2>Class Feed</h2>
+                    <select class="sort-select">
+                        <option>Most Recent</option>
+                    </select>
+                </div>
                 <div class="feed-grid">
                     <p style="color:#888; text-align:center;">Loading questions...</p>
                 </div>
@@ -60,4 +84,4 @@
     <script src="student.js"></script>
    
 </body>
-</html>
+</html> 

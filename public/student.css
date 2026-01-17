@@ -3,58 +3,76 @@
     font-family: 'Segoe UI', sans-serif; 
 }
 
-/* Remove body background and centering */
 body { 
     background-color: white; 
     margin: 0; 
     padding: 0; 
 }
 
-/* Main wrapper that spans the whole page width */
-.app-container {
-    padding: 40px 60px; /* Large side padding for a clean look */
-    width: 100%;
+/* --- NEW HEADER STYLES --- */
+.app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 60px;
+    background-color: #fff;
+    border-bottom: 1px solid #f0f0f0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
 }
 
-h1 { font-weight: 700; color: #334155; margin-bottom: 30px; }
-h2 { font-size: 1.2rem; color: #64748b; margin-bottom: 20px; }
-
-.top-bar { 
-    display: flex; 
-    justify-content: space-between; 
-    align-items: center; 
-    margin-bottom: 40px; 
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 15px;
 }
 
-.search-container { width: 60%; }
+.logo-icon {
+    font-size: 2.5rem; /* Big Logo */
+}
+
+.brand h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: #334155;
+}
+
+.search-wrapper {
+    width: 300px;
+}
 
 #searchBar {
     width: 100%;
-    padding: 15px 25px;
-    border-radius: 30px;
+    padding: 10px 20px;
+    border-radius: 20px;
     border: 2px solid #e2e8f0;
-    font-size: 16px;
+    font-size: 14px;
     outline: none;
     transition: 0.3s;
+    background-color: #f8fafc;
 }
 
-#searchBar:focus { border-color: #3b82f6; }
-
-.sort-select {
-    border: none; 
-    background: none; 
-    font-weight: bold; 
-    cursor: pointer;
+#searchBar:focus { 
+    border-color: #3b82f6; 
+    background-color: #fff;
 }
 
-/* Two-column layout that takes full screen width */
+/* --- LAYOUT --- */
+.app-container {
+    padding: 40px 60px;
+    width: 100%;
+}
+
 .main-layout { 
     display: grid; 
     grid-template-columns: 1.2fr 1fr; 
     gap: 60px; 
 }
 
-/* Subject Grid */
+h2 { font-size: 1.2rem; color: #64748b; margin-bottom: 20px; }
+
+/* --- SUBJECT CARDS WITH ICONS --- */
 .subject-grid { 
     display: grid; 
     grid-template-columns: repeat(3, 1fr); 
@@ -70,10 +88,19 @@ h2 { font-size: 1.2rem; color: #64748b; margin-bottom: 20px; }
     justify-content: center;
     cursor: pointer;
     transition: 0.2s;
+    text-align: center;
 }
 
-.subject-card:hover { transform: scale(1.05); }
-.subject-card i { font-size: 35px; margin-bottom: 10px; }
+.subject-card:hover { transform: translateY(-5px); }
+
+/* The Icon Styling */
+.subject-card i { 
+    font-style: normal;
+    font-size: 3rem; /* Size of the emoji/icon */
+    margin-bottom: 10px;
+    display: block;
+}
+
 .subject-card span { font-weight: 600; font-size: 14px; }
 
 /* Colors */
@@ -84,17 +111,33 @@ h2 { font-size: 1.2rem; color: #64748b; margin-bottom: 20px; }
 .c-green { background: #dcfce7; color: #15803d; }
 .c-gray { background: #f1f5f9; color: #475569; }
 
-/* Class Feed */
-.feed-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+/* --- FEED STYLES --- */
+.feed-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.sort-select {
+    border: none; 
+    background: none; 
+    font-weight: bold; 
+    cursor: pointer;
+    color: #555;
+}
+
+.feed-grid { display: grid; grid-template-columns: 1fr; gap: 15px; }
 
 .feed-item {
-    padding: 25px;
-    border-radius: 18px;
-    color: rgb(247, 245, 245);
+    padding: 20px;
+    border-radius: 12px;
+    color: white;
     font-size: 15px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
 }
 
 .f-blue { background: #3b82f6; }
@@ -102,25 +145,7 @@ h2 { font-size: 1.2rem; color: #64748b; margin-bottom: 20px; }
 .f-mint { background: #10b981; }
 .f-green { background: #22c55e; }
 
-.btn {
-    background: rgba(255,255,255,0.2);
-    border: 1px solid rgba(255,255,255,0.4);
-    padding: 8px 14px;
-    border-radius: 8px;
-    color: inherit;
-    cursor: pointer;
-    align-self: flex-start;
-    margin-top: 15px;
-}
-
-/* Make it responsive for smaller screens */
-@media (max-width: 900px) {
-    .main-layout { grid-template-columns: 1fr; }
-    .app-container { padding: 20px; }
-}
-
-
-/* Modal Overlay */
+/* --- MODAL --- */
 .modal {
     display: none; 
     position: fixed; 
@@ -131,7 +156,6 @@ h2 { font-size: 1.2rem; color: #64748b; margin-bottom: 20px; }
     backdrop-filter: blur(4px);
 }
 
-/* Modal Box */
 .modal-content {
     background-color: white;
     margin: 10% auto;
@@ -160,15 +184,10 @@ h2 { font-size: 1.2rem; color: #64748b; margin-bottom: 20px; }
     color: #64748b;
 }
 
-#submitDoubt {
-    background: #3b82f6;
-    color: rgb(12, 12, 12);
-    width: 100%;
-    padding: 12px;
+/* Responsiveness */
+@media (max-width: 768px) {
+    .app-header { flex-direction: column; gap: 15px; padding: 20px; }
+    .search-wrapper { width: 100%; }
+    .main-layout { grid-template-columns: 1fr; }
+    .app-container { padding: 20px; }
 }
-
-.f-yellow { background: #eab308; } 
-.f-purple { background: #a855f7; } 
-.f-gray { background: #64748b; }   
-
-.feed-item p { color: white; margin: 0; }
