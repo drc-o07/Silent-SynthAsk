@@ -3,11 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Teacher Login | School Doubts & Answers</title>
+    <title>Welcome | Silent SynthAsk</title>
     <link rel="stylesheet" href="index.css">
+    
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+
+    <style>
+        .btn-secondary {
+            width: 100%;
+            padding: 12px;
+            background-color: transparent;
+            color: #555;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 15px;
+            transition: all 0.3s ease;
+        }
+        .btn-secondary:hover {
+            border-color: #333;
+            color: #333;
+        }
+        .divider {
+            margin: 20px 0;
+            color: #aaa;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        .divider::before, .divider::after {
+            content: "";
+            height: 1px;
+            background-color: #eee;
+            flex-grow: 1;
+        }
+    </style>
 </head>
 <body>
-    <!-- This is the login page for teachers -->
 
     <div class="login-wrapper">
         <div class="brand">
@@ -16,13 +53,13 @@
         </div>
 
         <div class="login-card">
-            <h2>Teacher Login</h2>
-            <p class="welcome-text">Welcome back! Please enter your account details.</p>
+            <h2>Welcome</h2>
+            <p class="welcome-text">Select your role to continue.</p>
 
             <form id="loginForm">
                 <div class="input-box">
                     <label>School ID / Email</label>
-                    <input type="email" placeholder="name@school.edu" required>
+                    <input type="email" placeholder="teacher@school.edu" required>
                 </div>
 
                 <div class="input-box">
@@ -30,24 +67,20 @@
                     <input type="password" placeholder="••••••••" required>
                 </div>
 
-                <div class="form-helpers">
-                    <label class="remember">
-                        <input type="checkbox"> Remember me
-                    </label>
-                    <a href="#" class="forgot">Forgot Password?</a>
-                </div>
-
-                <button type="submit" class="login-btn">Log In</button>
+                <button type="submit" class="login-btn">Teacher Login</button>
             </form>
 
+            <div class="divider">OR</div>
+
+            <button id="studentBtn" class="btn-secondary">Enter Anonymously (Student)</button>
+
             <div class="footer-note">
-                Don't have an account? <a href="#">Contact Admin</a>
+                Having trouble? <a href="#">Contact Admin</a>
             </div>
         </div>
     </div>
-    <script type="module" src="index.js"></script>
 
-
+    <script src="index.js"></script>
 
 </body>
 </html>
